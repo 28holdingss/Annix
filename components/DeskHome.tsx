@@ -1,21 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Cover } from "@/components/covers";
+import { Cover, coverKey } from "@/components/covers";
 import { needsRevision } from "@/lib/desk";
 import { accraDay, money, todayKey } from "@/lib/format";
-import { balanceOf, toneOf } from "@/lib/plan";
+import { toneOf } from "@/lib/plan";
 import { priceQuote } from "@/lib/pricing";
 import { useDesk } from "@/lib/store";
-
-const hues = ["#ff8a3d", "#3d7dff", "#1aae70", "#7a5af8", "#e25b8a", "#0e8f8a"];
 
 export function DeskHome() {
   const desk = useDesk();
   const today = todayKey();
-  const attention =
-    desk.followUps.filter((row) => row.status === "open").length +
-    desk.inquiries.filter((inquiry) => needsRevision(desk, inquiry.id)).length;
+  const revisions = desk.inquiries.filter((inquiry) => needsRevision(desk, inquiry.id));
+  const follows = desk.followUps.filter((row) => row.status === "open");
+  const attention = follows.length + revisions.length;
   const due = desk.bookings
     .flatMap((booking) =>
       booking.installments
@@ -27,8 +25,8 @@ export function DeskHome() {
   const openInquiries = desk.inquiries.filter((inquiry) => inquiry.status !== "booked").length;
   const quoted = desk.quotes.filter((quote) => quote.status === "sent").length;
   const booked = desk.bookings.length;
-  const revisions = desk.inquiries.filter((inquiry) => needsRevision(desk, inquiry.id));
-  const spotlight = desk.inquiries.slice(0, 4);
+  const spotlight = [...desk.inquiries].sort((a, b) => b.opened.localeCompare(a.opened)).slice(0, 4);
+  const greeting = morningLine(dueSoon.length, revisions.length, follows.length);
 
   return (
     <>
@@ -37,7 +35,7 @@ export function DeskHome() {
           <span className="avatar lg">AO</span>
           <div>
             <h1>Abena Owusu</h1>
-            <p>Hey, plan the next Annix itinerary.</p>
+            <p>{greeting}</p>
           </div>
         </div>
         <div className="top-actions">
@@ -58,23 +56,49 @@ export function DeskHome() {
         {spotlight.map((inquiry) => {
           const quote = desk.quotes.find((row) => row.inquiryId === inquiry.id);
           return (
-            <Link key={inquiry.id} href={quote ? `/quotes/${quote.id}` : `/inquiries/${inquiry.id}`} className="spot">
-              <Cover destination={inquiry.destination} label={inquiry.destination} />
-              <div className="spot-cap">
-                <strong>{inquiry.organisation ?? inquiry.client}</strong>
-                <span>{inquiry.dates}</span>
-              </div>
+            <Link key={inquiry.id} href={quote ? `/quotes/${quote.id}` : `/inquiries/${inquiry.id}`} className={`spot ${coverKey(inquiry.destination)}`}>
+              <span className="spot-status">{quote?.status ?? inquiry.status}</span>
+              <strong>{inquiry.destination}</strong>
+              <span>{inquiry.organisation ?? inquiry.client}</span>
+              <em>
+                {inquiry.dates} · {inquiry.travelers} travellers
+              </em>
             </Link>
           );
         })}
       </section>
 
       <section className="stats">
-        <Stat label="Open inquiries" value={String(openInquiries)} note="Not yet booked" tone="down" />
-        <Stat label="With the client" value={String(quoted)} note="Proposals sent" tone="up" />
-        <Stat label="Susu plans" value={String(booked)} note="Reserved trips" tone="up" />
-        <Stat label="Due this week" value={String(dueSoon.length)} note="Installments" tone={dueSoon.length ? "down" : "up"} />
+        <Stat href="/inquiries" label="Open inquiries" value={String(openInquiries)} note="Not yet booked" />
+        <Stat href="/quotes" label="With the client" value={String(quoted)} note="Proposals sent" />
+        <Stat href="/bookings" label="Susu plans" value={String(booked)} note="Reserved trips" />
+        <Stat href="/payments" label="Due this week" value={String(dueSoon.length)} note="Installments" hot={dueSoon.length > 0} />
       </section>
+
+      {revisions.length || follows.length ? (
+        <section className="card flat attn">
+          {revisions.map((inquiry) => {
+            const quote = desk.quotes.find((row) => row.inquiryId === inquiry.id);
+            return (
+              <Link key={inquiry.id} href={quote ? `/quotes/${quote.id}` : `/inquiries/${inquiry.id}`}>
+                <strong>{inquiry.client}</strong>
+                <span>asked for a change on {inquiry.destination}</span>
+              </Link>
+            );
+          })}
+          {follows.map((follow) => {
+            const inquiry = desk.inquiries.find((row) => row.id === follow.inquiryId);
+            return (
+              <Link key={follow.id} href={`/messages?with=${follow.inquiryId}`}>
+                <strong>{inquiry?.client ?? "Follow up"}</strong>
+                <span>
+                  {follow.reason} · {accraDay(follow.due)}
+                </span>
+              </Link>
+            );
+          })}
+        </section>
+      ) : null}
 
       <div className="home-grid">
         <section className="card flat">
@@ -88,13 +112,18 @@ export function DeskHome() {
               const priced = inquiry ? priceQuote(quote, inquiry.travelers) : null;
               return (
                 <Link key={quote.id} href={`/quotes/${quote.id}`} className="package">
-                  <Cover destination={inquiry?.destination ?? quote.title} label={inquiry?.destination.split(",")[0] ?? quote.title} />
+                  <Cover destination={inquiry?.destination ?? quote.title} label="" />
                   <div>
-                    <strong>{quote.title}</strong>
+                    <strong>{inquiry?.organisation ?? inquiry?.client ?? quote.title}</strong>
                     <span className="meta">
-                      {inquiry?.dates} · {inquiry?.travelers} travellers
+                      {quote.title} · {inquiry?.dates} · {inquiry?.travelers} travellers
                     </span>
-                    <b>{priced ? money(priced.perPerson, quote.invoiceCurrency) : "—"} <em>/ person</em></b>
+                  </div>
+                  <div className="pkg-end">
+                    <b>
+                      {priced ? money(priced.perPerson, quote.invoiceCurrency) : "—"} <em>/ person</em>
+                    </b>
+                    <span className={`pill ${quote.status}`}>{quote.status}</span>
                   </div>
                 </Link>
               );
@@ -107,19 +136,17 @@ export function DeskHome() {
           <section className="card flat">
             <div className="section-head">
               <h2>Upcoming collections</h2>
-              <Link href="/bookings">Ledger</Link>
+              <Link href="/payments">Payments</Link>
             </div>
             <div className="timeline">
               {due.slice(0, 4).map(({ booking, row, tone }) => {
                 const inquiry = desk.inquiries.find((item) => item.id === booking.inquiryId);
                 return (
-                  <Link key={row.id} href={`/bookings/${booking.id}`} className="trip-row">
+                  <Link key={row.id} href={`/bookings/${booking.id}`} className="collect">
                     <span className={`dot ${tone}`} />
-                    <span>
-                      <strong>{inquiry?.client}</strong>
-                      <span className="meta">{row.label}</span>
-                    </span>
+                    <strong>{inquiry?.client}</strong>
                     <span className={`chip ${tone}`}>{money(row.amount, booking.currency)}</span>
+                    <span className="meta">{row.label}</span>
                     <span className="meta when">{accraDay(row.due)}</span>
                   </Link>
                 );
@@ -130,44 +157,29 @@ export function DeskHome() {
         </aside>
       </div>
 
-      <section className="card flat">
-        <div className="section-head">
-          <h2>Clients waiting</h2>
-          <Link href="/messages">See more</Link>
-        </div>
-        <div className="people">
-          {desk.inquiries.map((inquiry, index) => (
-            <Link key={inquiry.id} href={`/messages?with=${inquiry.id}`} className="person-card">
-              <span className="avatar" style={{ background: hues[index % hues.length] }}>
-                {initials(inquiry.client)}
-              </span>
-              <strong>{inquiry.client.split(" ")[0]}</strong>
-              <span className="meta">{inquiry.channel}</span>
-            </Link>
-          ))}
-          {revisions.map((inquiry) => (
-            <Link key={`${inquiry.id}-rev`} href={`/quotes/${desk.quotes.find((quote) => quote.inquiryId === inquiry.id)?.id ?? ""}`} className="person-card alert">
-              <span className="avatar" style={{ background: "#ff7a1a" }}>!</span>
-              <strong>Revise</strong>
-              <span className="meta">{inquiry.client.split(" ")[0]}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
     </>
   );
 }
 
-function Stat({ label, value, note, tone }: { label: string; value: string; note: string; tone: "up" | "down" }) {
+function Stat({ href, label, value, note, hot }: { href: string; label: string; value: string; note: string; hot?: boolean }) {
   return (
-    <article className="stat">
+    <Link href={href} className="stat">
       <p>{label}</p>
       <div className="stat-row">
         <strong>{value}</strong>
-        <span className={`trend ${tone}`}>{note}</span>
+        <span className={hot ? "trend down" : "trend"}>{note}</span>
       </div>
-    </article>
+    </Link>
   );
+}
+
+function morningLine(due: number, changes: number, follows: number) {
+  const parts = [
+    due ? `${due} collection${due === 1 ? "" : "s"} due` : "",
+    changes ? `${changes} change${changes === 1 ? "" : "s"} to answer` : "",
+    follows ? `${follows} follow-up${follows === 1 ? "" : "s"}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Nothing is waiting on you this morning.";
 }
 
 function Month({ marks, today }: { marks: Set<string>; today: string }) {
@@ -200,15 +212,10 @@ function Month({ marks, today }: { marks: Set<string>; today: string }) {
           );
         })}
       </div>
+      <p className="cal-legend">
+        <i className="today" /> Today
+        <i className="marked" /> Collection due
+      </p>
     </section>
   );
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0] ?? "")
-    .join("")
-    .toUpperCase();
 }

@@ -40,9 +40,14 @@ export function BookingDesk({ id }: { id: string }) {
             {inquiry.destination} · {inquiry.dates} · {inquiry.travelers} travellers
           </p>
         </div>
-        <Link className="btn" href={`/quotes/${booking.quoteId}/proposal`}>
-          Proposal
-        </Link>
+        <div className="handoff">
+          <Link className="btn" href="/payments">
+            Payments
+          </Link>
+          <Link className="btn" href={`/quotes/${booking.quoteId}/proposal`}>
+            Proposal
+          </Link>
+        </div>
       </header>
 
       <section className="pay-stats">
@@ -66,7 +71,7 @@ export function BookingDesk({ id }: { id: string }) {
           <div className="section-head">
             <h2>Susu plan</h2>
             <span className="meta">
-              {paidCount} of {booking.installments.length} paid
+              {paidCount} of {booking.installments.length} paid · {Math.round(width)}%
             </span>
           </div>
           <div className="progress" aria-hidden>

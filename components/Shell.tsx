@@ -11,6 +11,7 @@ const links: { href: string; label: string; icon: ReactNode }[] = [
   { href: "/inquiries", label: "Inquiries", icon: <PinIcon /> },
   { href: "/quotes", label: "Itinerary", icon: <PathIcon /> },
   { href: "/bookings", label: "Bookings", icon: <CardIcon /> },
+  { href: "/payments", label: "Payments", icon: <PayIcon /> },
   { href: "/messages", label: "Threads", icon: <ChatIcon /> },
 ];
 
@@ -100,6 +101,15 @@ function CardIcon() {
     <svg viewBox="0 0 24 24" aria-hidden>
       <rect x="3" y="6" width="18" height="12" rx="2" />
       <path d="M3 10h18" />
+    </svg>
+  );
+}
+function PayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M5 7h14v10H5z" />
+      <path d="M5 11h14" />
+      <path d="M8 15h3" />
     </svg>
   );
 }
