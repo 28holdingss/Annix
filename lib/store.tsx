@@ -13,14 +13,18 @@ import {
   postMessage,
   rebaseCurrency,
   rebuildPlan,
+  cycleDocument,
   recordPayment,
   removeDay,
   removeItem,
   sendQuote,
+  setRentalStatus,
+  setTicket,
+  setVisaStatus,
 } from "./desk";
 import { createSeed } from "./seed";
 import { uid } from "./format";
-import type { Cadence, Currency, DayBlock, DeskState, LineItem, PayMethod, Quote } from "./types";
+import type { Cadence, Currency, DayBlock, DeskState, LineItem, PayMethod, Quote, RentalStatus, TicketStatus, VisaStatus } from "./types";
 
 const KEY = "skyland-annix-desk-v1";
 
@@ -42,6 +46,10 @@ type Api = DeskState & {
   rebuildPlan: (bookingId: string, opts: { depositPct: number; payments: number; cadence: Cadence }) => void;
   postMessage: (inquiryId: string, channel: "whatsapp" | "email", body: string, subject?: string) => void;
   nudge: (followUpId: string) => void;
+  setTicket: (id: string, patch: { status?: TicketStatus; pnr?: string }) => void;
+  cycleDocument: (visaId: string, docId: string) => void;
+  setVisaStatus: (id: string, status: VisaStatus) => void;
+  setRentalStatus: (id: string, status: RentalStatus) => void;
 };
 
 const Ctx = createContext<Api | null>(null);
@@ -50,6 +58,20 @@ function usable(value: unknown): value is DeskState {
   if (!value || typeof value !== "object") return false;
   const row = value as DeskState;
   return Array.isArray(row.inquiries) && Array.isArray(row.quotes) && Array.isArray(row.bookings) && Array.isArray(row.messages) && Array.isArray(row.followUps);
+}
+
+function hydrate(saved: DeskState): DeskState {
+  const seed = createSeed();
+  const known = new Set(saved.inquiries.map((row) => row.id));
+  const messages = new Set(saved.messages.map((row) => row.id));
+  return {
+    ...saved,
+    inquiries: [...saved.inquiries.map((row) => ({ ...row, service: row.service ?? "tour" })), ...seed.inquiries.filter((row) => !known.has(row.id))],
+    messages: [...saved.messages, ...seed.messages.filter((row) => !messages.has(row.id) && !known.has(row.inquiryId))],
+    tickets: saved.tickets ?? seed.tickets,
+    visas: saved.visas ?? seed.visas,
+    rentals: saved.rentals ?? seed.rentals,
+  };
 }
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
@@ -61,7 +83,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const parsed = JSON.parse(raw) as unknown;
         if (usable(parsed)) {
-          setState(parsed);
+          setState(hydrate(parsed));
           return;
         }
       }
@@ -107,6 +129,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       rebuildPlan: (bookingId, opts) => apply((current) => rebuildPlan(current, bookingId, opts)),
       postMessage: (inquiryId, channel, body, subject) => apply((current) => postMessage(current, inquiryId, channel, body, subject)),
       nudge: (followUpId) => apply((current) => nudge(current, followUpId)),
+      setTicket: (id, patch) => apply((current) => setTicket(current, id, patch)),
+      cycleDocument: (visaId, docId) => apply((current) => cycleDocument(current, visaId, docId)),
+      setVisaStatus: (id, status) => apply((current) => setVisaStatus(current, id, status)),
+      setRentalStatus: (id, status) => apply((current) => setRentalStatus(current, id, status)),
     };
   }, [state]);
 

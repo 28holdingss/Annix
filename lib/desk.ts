@@ -13,6 +13,9 @@ import type {
   Message,
   PayMethod,
   Quote,
+  RentalStatus,
+  TicketStatus,
+  VisaStatus,
 } from "./types";
 
 const nowIso = () => new Date().toISOString();
@@ -515,6 +518,56 @@ export function nudge(state: DeskState, followUpId: string): DeskState {
       },
     ],
   };
+}
+
+const nextDoc = { missing: "in", in: "checked", checked: "missing" } as const;
+
+export function setTicket(state: DeskState, id: string, patch: { status?: TicketStatus; pnr?: string }): DeskState {
+  const ticket = state.tickets.find((row) => row.id === id);
+  if (!ticket) return state;
+  const next = { ...ticket, ...patch };
+  let messages = state.messages;
+  if (patch.status === "ticketed" && ticket.status !== "ticketed") {
+    messages = [...messages, note(state, ticket.inquiryId, `Your ${ticket.route} ticket is issued${next.pnr ? ` on ${next.pnr}` : ""}. — Annix Travels`)];
+  }
+  if (patch.status === "held" && ticket.status !== "held") {
+    messages = [...messages, note(state, ticket.inquiryId, `The ${ticket.airline} fare for ${ticket.route} is held${next.pnr ? ` as ${next.pnr}` : ""}. — Annix Travels`)];
+  }
+  return { ...state, tickets: replace(state.tickets, id, next), messages };
+}
+
+export function cycleDocument(state: DeskState, visaId: string, docId: string): DeskState {
+  const visa = state.visas.find((row) => row.id === visaId);
+  if (!visa || visa.status === "issued") return state;
+  const documents = visa.documents.map((doc) => (doc.id === docId ? { ...doc, state: nextDoc[doc.state] } : doc));
+  const ready = documents.every((doc) => doc.state === "checked");
+  return {
+    ...state,
+    visas: replace(state.visas, visaId, { ...visa, documents, status: ready ? "documents" : visa.status === "checklist" ? "documents" : visa.status }),
+  };
+}
+
+export function setVisaStatus(state: DeskState, id: string, status: VisaStatus): DeskState {
+  const visa = state.visas.find((row) => row.id === id);
+  if (!visa) return state;
+  const messages = status === "issued" && visa.status !== "issued" ? [...state.messages, note(state, visa.inquiryId, `${visa.visaType} is issued. Travel ${visa.travelDate}. — Annix Travels`)] : state.messages;
+  return { ...state, visas: replace(state.visas, id, { ...visa, status }), messages };
+}
+
+export function setRentalStatus(state: DeskState, id: string, status: RentalStatus): DeskState {
+  const rental = state.rentals.find((row) => row.id === id);
+  if (!rental) return state;
+  const messages =
+    status === "confirmed" && rental.status !== "confirmed"
+      ? [...state.messages, note(state, rental.inquiryId, `${rental.vehicle} is confirmed, pickup at ${rental.pickup}. — Annix Travels`)]
+      : state.messages;
+  return { ...state, rentals: replace(state.rentals, id, { ...rental, status }), messages };
+}
+
+function note(state: DeskState, inquiryId: string, body: string): Message {
+  const inquiry = inquiryOf(state, inquiryId);
+  const channel = inquiry?.channel === "email" ? "email" : "whatsapp";
+  return { id: uid("msg"), inquiryId, channel, direction: "out", at: nowIso(), body };
 }
 
 export function latestMessage(state: DeskState, inquiryId: string) {

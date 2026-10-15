@@ -5,7 +5,12 @@ import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
 const sans = Outfit({ subsets: ["latin"], variable: "--font-sans" });
-const display = Fraunces({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-display" });
+const display = Fraunces({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  weight: ["400", "500"],
+  variable: "--font-display",
+});
 
 export const viewport: Viewport = {
   width: "device-width",

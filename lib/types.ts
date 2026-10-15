@@ -20,6 +20,8 @@ export type Category =
 
 export type Fx = Record<Currency, number>;
 
+export type Service = "tour" | "ticket" | "visa" | "rental";
+
 export type Inquiry = {
   id: string;
   ref: string;
@@ -28,7 +30,8 @@ export type Inquiry = {
   phone: string;
   email: string;
   channel: Channel;
-  kind: "Group tour" | "Bespoke" | "Heritage" | "Corporate";
+  kind: "Group tour" | "Bespoke" | "Heritage" | "Corporate" | "Ticketing" | "Visa" | "Car rental";
+  service?: Service;
   destination: string;
   travelers: number;
   dates: string;
@@ -37,6 +40,61 @@ export type Inquiry = {
   consultant: string;
   status: InquiryStatus;
   opened: string;
+};
+
+export type TicketStatus = "quoting" | "held" | "ticketed";
+
+export type Ticket = {
+  id: string;
+  inquiryId: string;
+  ref: string;
+  airline: string;
+  route: string;
+  cabin: string;
+  depart: string;
+  returns?: string;
+  passengers: string[];
+  pnr: string;
+  status: TicketStatus;
+  fare: number;
+  currency: Currency;
+  note: string;
+};
+
+export type VisaStatus = "checklist" | "documents" | "submitted" | "issued";
+export type DocState = "missing" | "in" | "checked";
+
+export type VisaCase = {
+  id: string;
+  inquiryId: string;
+  ref: string;
+  destination: string;
+  visaType: string;
+  applicants: string[];
+  travelDate: string;
+  status: VisaStatus;
+  fee: number;
+  currency: Currency;
+  documents: { id: string; label: string; state: DocState }[];
+};
+
+export type RentalMode = "airport" | "chauffeur" | "self-drive";
+export type RentalStatus = "requested" | "confirmed" | "out" | "returned";
+
+export type Rental = {
+  id: string;
+  inquiryId: string;
+  ref: string;
+  mode: RentalMode;
+  vehicle: string;
+  pickup: string;
+  dropoff: string;
+  start: string;
+  end: string;
+  status: RentalStatus;
+  rate: number;
+  currency: Currency;
+  note: string;
 };
 
 export type DayBlock = {
@@ -142,4 +200,7 @@ export type DeskState = {
   bookings: Booking[];
   messages: Message[];
   followUps: FollowUp[];
+  tickets: Ticket[];
+  visas: VisaCase[];
+  rentals: Rental[];
 };

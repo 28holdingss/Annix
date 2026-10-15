@@ -74,6 +74,8 @@ export function QuoteStudio({ id }: { id: string }) {
   const router = useRouter();
   const [sentNote, setSentNote] = useState(false);
   const [openLine, setOpenLine] = useState<string | null>(null);
+  const [openDay, setOpenDay] = useState<string | null>(null);
+  const [termsOpen, setTermsOpen] = useState(false);
   const quote = desk.quotes.find((row) => row.id === id);
   const inquiry = quote ? desk.inquiries.find((row) => row.id === quote.inquiryId) : undefined;
   if (!quote || !inquiry) return <p>This proposal is not on the desk.</p>;
@@ -167,49 +169,60 @@ export function QuoteStudio({ id }: { id: string }) {
             <ol className="journey">
               {quote.days.map((day) => {
                 const daySpend = priced.presented.filter((line) => line.day === day.day).reduce((sum, line) => sum + line.client, 0);
+                const open = openDay === day.id;
                 return (
                   <li key={day.id} className="journey-day">
                     <div className="journey-mark" aria-hidden>
                       {day.day}
                     </div>
-                    <article className="journey-body">
-                      <div className="journey-top">
-                        <input
-                          className="city-field"
-                          aria-label={`Day ${day.day} place`}
-                          value={day.city}
-                          onChange={(event) => desk.patchDay(quote.id, day.id, { city: event.target.value })}
-                        />
+                    <article className={open ? "journey-body open" : "journey-body"}>
+                      <button type="button" className="journey-top" aria-expanded={open} onClick={() => setOpenDay(open ? null : day.id)}>
+                        <span>
+                          <span className="city-read">{day.city}</span>
+                          {open ? null : <span className="title-read">{day.title}</span>}
+                        </span>
                         {daySpend > 0 ? <span className="meta">{money(daySpend, quote.invoiceCurrency)}</span> : null}
-                        {!locked ? (
-                          <button type="button" className="icon-btn" aria-label={`Remove day ${day.day}`} onClick={() => desk.removeDay(quote.id, day.id)}>
-                            ×
-                          </button>
-                        ) : null}
-                      </div>
-                      <input
-                        className="title-field"
-                        aria-label={`Day ${day.day} title`}
-                        value={day.title}
-                        onChange={(event) => desk.patchDay(quote.id, day.id, { title: event.target.value })}
-                      />
-                      <textarea
-                        className="story-field"
-                        aria-label={`Day ${day.day} story`}
-                        rows={2}
-                        value={day.narrative}
-                        onChange={(event) => desk.patchDay(quote.id, day.id, { narrative: event.target.value })}
-                      />
-                      <div className="stay-row">
-                        <label>
-                          <span>Stay</span>
-                          <input value={day.stay} onChange={(event) => desk.patchDay(quote.id, day.id, { stay: event.target.value })} />
-                        </label>
-                        <label>
-                          <span>Meals</span>
-                          <input value={day.meals} onChange={(event) => desk.patchDay(quote.id, day.id, { meals: event.target.value })} />
-                        </label>
-                      </div>
+                      </button>
+                      {open ? (
+                        <>
+                          <input
+                            className="title-field"
+                            aria-label={`Day ${day.day} title`}
+                            value={day.title}
+                            onChange={(event) => desk.patchDay(quote.id, day.id, { title: event.target.value })}
+                          />
+                          <textarea
+                            className="story-field"
+                            aria-label={`Day ${day.day} story`}
+                            rows={2}
+                            value={day.narrative}
+                            onChange={(event) => desk.patchDay(quote.id, day.id, { narrative: event.target.value })}
+                          />
+                          <div className="stay-row">
+                            <label>
+                              <span>Stay</span>
+                              <input value={day.stay} onChange={(event) => desk.patchDay(quote.id, day.id, { stay: event.target.value })} />
+                            </label>
+                            <label>
+                              <span>Meals</span>
+                              <input value={day.meals} onChange={(event) => desk.patchDay(quote.id, day.id, { meals: event.target.value })} />
+                            </label>
+                          </div>
+                          <div className="journey-edit">
+                            <input
+                              className="city-field"
+                              aria-label={`Day ${day.day} place`}
+                              value={day.city}
+                              onChange={(event) => desk.patchDay(quote.id, day.id, { city: event.target.value })}
+                            />
+                            {!locked ? (
+                              <button type="button" className="icon-btn" aria-label={`Remove day ${day.day}`} onClick={() => desk.removeDay(quote.id, day.id)}>
+                                ×
+                              </button>
+                            ) : null}
+                          </div>
+                        </>
+                      ) : null}
                     </article>
                   </li>
                 );
@@ -221,6 +234,10 @@ export function QuoteStudio({ id }: { id: string }) {
               </button>
             ) : null}
 
+            <button type="button" className="quiet-toggle" aria-expanded={termsOpen} onClick={() => setTermsOpen((open) => !open)}>
+              {termsOpen ? "Hide inclusions" : `Included · ${quote.inclusions.length}`}
+            </button>
+            {termsOpen ? (
             <section className="terms">
               <LineList
                 tone="in"
@@ -243,6 +260,7 @@ export function QuoteStudio({ id }: { id: string }) {
                 <textarea rows={2} value={quote.notes} placeholder="Only the desk sees this. It does not go on the proposal." onChange={(event) => desk.patchQuote(quote.id, { notes: event.target.value })} />
               </label>
             </section>
+            ) : null}
           </section>
 
           <aside className="cost-col">
@@ -327,11 +345,7 @@ export function QuoteStudio({ id }: { id: string }) {
                   return (
                     <li key={item.id} className={open ? "open" : undefined}>
                       <button type="button" className="ledger-summary" onClick={() => setOpenLine(open ? null : item.id)} aria-expanded={open}>
-                        <span className="cat">{item.category}</span>
                         <span className="ledger-name">{item.description || "Untitled line"}</span>
-                        <span className="ledger-sub">
-                          {item.day ? `Day ${item.day}` : "Whole trip"} · {item.qty} {item.unit}
-                        </span>
                         <span className="ledger-amt">{money(line, item.currency)}</span>
                       </button>
                       {open ? (

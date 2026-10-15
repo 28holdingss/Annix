@@ -8,6 +8,7 @@ import { accra, money } from "@/lib/format";
 import { balanceOf, paidOf } from "@/lib/plan";
 import { priceQuote } from "@/lib/pricing";
 import { useDesk } from "@/lib/store";
+import type { Inquiry } from "@/lib/types";
 
 export function InquiryDetail({ id }: { id: string }) {
   const desk = useDesk();
@@ -15,6 +16,7 @@ export function InquiryDetail({ id }: { id: string }) {
   const inquiry = desk.inquiries.find((row) => row.id === id);
   if (!inquiry) return <p>This inquiry is not on the desk.</p>;
   const quote = desk.quotes.find((row) => row.inquiryId === inquiry.id);
+  const service = serviceLink(desk, inquiry);
   const booking = desk.bookings.find((row) => row.inquiryId === inquiry.id);
   const thread = desk.messages.filter((row) => row.inquiryId === inquiry.id).slice(-3);
   const follow = desk.followUps.find((row) => row.inquiryId === inquiry.id && row.status === "open");
@@ -59,8 +61,19 @@ export function InquiryDetail({ id }: { id: string }) {
 
       <div className="file-grid">
         <section className="card trip-card">
+          <div className="trip-top">
+            <h2>Itinerary</h2>
+            {quote ? <span>{quote.ref}</span> : null}
+          </div>
           <Cover destination={inquiry.destination} label={inquiry.destination} />
-          {quote && priced ? (
+          {service ? (
+            <div className="trip-empty">
+              <p>{service.note}</p>
+              <Link className="btn primary" href={service.href}>
+                {service.label}
+              </Link>
+            </div>
+          ) : quote && priced ? (
             <>
               <ol className="file-days">
                 {quote.days.map((day) => (
@@ -112,7 +125,7 @@ export function InquiryDetail({ id }: { id: string }) {
 
         <aside className="file-side">
           <section className="card person-file">
-            <span className="avatar" style={{ background: "#ff8a3d" }}>
+            <span className="avatar" style={{ background: "#fff1e8", color: "#ef6a08" }}>
               {initials(inquiry.client)}
             </span>
             <div>
@@ -147,7 +160,11 @@ export function InquiryDetail({ id }: { id: string }) {
                 </Link>
               </>
             ) : (
-              <p className="empty">Accepting the proposal opens a 30% deposit and four Susu payments on this file.</p>
+              <p className="empty">
+                {inquiry.service && inquiry.service !== "tour"
+                  ? "Susu sits on a reserved tour. This file is billed as the fare, the visa fee, or the car."
+                  : "Accepting the proposal opens a 30% deposit and four Susu payments on this file."}
+              </p>
             )}
           </section>
         </aside>
@@ -185,6 +202,22 @@ export function InquiryDetail({ id }: { id: string }) {
       </section>
     </div>
   );
+}
+
+function serviceLink(desk: ReturnType<typeof useDesk>, inquiry: Inquiry) {
+  if (inquiry.service === "ticket") {
+    const row = desk.tickets.find((item) => item.inquiryId === inquiry.id);
+    return row ? { href: `/tickets/${row.id}`, label: "Open the ticket", note: `${row.airline} · ${row.route}. This enquiry is a fare, not a tour.` } : null;
+  }
+  if (inquiry.service === "visa") {
+    const row = desk.visas.find((item) => item.inquiryId === inquiry.id);
+    return row ? { href: `/visas/${row.id}`, label: "Open the visa file", note: `${row.visaType}. Annix checks the papers. The embassy issues the visa.` } : null;
+  }
+  if (inquiry.service === "rental") {
+    const row = desk.rentals.find((item) => item.inquiryId === inquiry.id);
+    return row ? { href: `/rentals/${row.id}`, label: "Open the car", note: `${row.vehicle}. Pickup at ${row.pickup}.` } : null;
+  }
+  return null;
 }
 
 function initials(name: string) {

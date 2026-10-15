@@ -9,6 +9,7 @@ import { useDesk } from "@/lib/store";
 const links: { href: string; label: string; icon: ReactNode }[] = [
   { href: "/", label: "Dashboard", icon: <DashIcon /> },
   { href: "/inquiries", label: "Inquiries", icon: <PinIcon /> },
+  { href: "/services", label: "Services", icon: <BagIcon /> },
   { href: "/quotes", label: "Itinerary", icon: <PathIcon /> },
   { href: "/bookings", label: "Bookings", icon: <CardIcon /> },
   { href: "/payments", label: "Payments", icon: <PayIcon /> },
@@ -37,7 +38,12 @@ export function Shell({ children }: { children: ReactNode }) {
         <p className="menu-label">Menu</p>
         <nav className="nav">
           {links.map((link) => {
-            const active = link.href === "/" ? path === "/" : path.startsWith(link.href);
+            const active =
+              link.href === "/"
+                ? path === "/"
+                : link.href === "/services"
+                  ? path.startsWith("/services") || path.startsWith("/tickets") || path.startsWith("/visas") || path.startsWith("/rentals")
+                  : path.startsWith(link.href);
             return (
               <Link key={link.href} href={link.href} className={active ? "active" : undefined} aria-current={active ? "page" : undefined}>
                 <span className="ico">{link.icon}</span>
@@ -110,6 +116,14 @@ function PayIcon() {
       <path d="M5 7h14v10H5z" />
       <path d="M5 11h14" />
       <path d="M8 15h3" />
+    </svg>
+  );
+}
+function BagIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M8 8V7a4 4 0 0 1 8 0v1" />
+      <path d="M5 8h14l-1 12H6L5 8z" />
     </svg>
   );
 }

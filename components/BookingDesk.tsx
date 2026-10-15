@@ -50,40 +50,37 @@ export function BookingDesk({ id }: { id: string }) {
         </div>
       </header>
 
-      <section className="pay-stats">
-        <article>
-          <p>Collected</p>
-          <strong>{money(collected, booking.currency)}</strong>
-        </article>
-        <article>
+      <section className="plan-summary">
+        <div>
           <p>Still to collect</p>
           <strong>{money(balance, booking.currency)}</strong>
-        </article>
-        <article>
-          <p>{next ? next.label : "Plan complete"}</p>
-          <strong>{next ? money(next.amount, booking.currency) : "Paid"}</strong>
+          <div className="progress" aria-hidden>
+            <span style={{ width: `${width}%` }} />
+          </div>
+          <em>
+            {paidCount} of {booking.installments.length} paid · {Math.round(width)}% · {money(collected, booking.currency)} collected
+          </em>
+        </div>
+        <aside>
+          <p>{next ? "Next" : "Plan"}</p>
+          <strong>{next ? next.label : "Complete"}</strong>
+          <b>{next ? money(next.amount, booking.currency) : "Paid"}</b>
           {next ? <span>{accraDay(next.due)}</span> : null}
-        </article>
+        </aside>
       </section>
 
       <div className="split">
         <section className="ledger-card">
           <div className="section-head">
             <h2>Susu plan</h2>
-            <span className="meta">
-              {paidCount} of {booking.installments.length} paid · {Math.round(width)}%
-            </span>
-          </div>
-          <div className="progress" aria-hidden>
-            <span style={{ width: `${width}%` }} />
           </div>
           <ol className="pay-list">
             {booking.installments.map((row) => {
               const tone = toneOf(row, today);
               const isNext = next?.id === row.id;
-              const open = openId === row.id || (isNext && openId === null && tone !== "scheduled");
+              const open = openId === row.id;
               return (
-                <li key={row.id} className={`pay-row ${tone} ${isNext ? "next" : ""}`}>
+                <li key={row.id} className={`pay-row ${tone} ${isNext ? "next" : ""} ${open ? "open" : ""}`}>
                   <span className="pay-mark" aria-hidden>
                     {row.status === "paid" ? "✓" : row.due.slice(8, 10)}
                   </span>
@@ -121,8 +118,8 @@ export function BookingDesk({ id }: { id: string }) {
                       </form>
                     ) : null}
                     {row.status !== "paid" && !open ? (
-                      <button type="button" className="terms-add" onClick={() => setOpenId(row.id)}>
-                        Record this payment
+                      <button type="button" className="record-link" onClick={() => setOpenId(row.id)}>
+                        Record
                       </button>
                     ) : null}
                   </div>
@@ -179,11 +176,11 @@ export function BookingDesk({ id }: { id: string }) {
           <p className="kicker">Invoice {booking.invoiceNo}</p>
           <h2>{money(booking.total, booking.currency)}</h2>
           <p className="meta">Rate locked {accra(`${booking.fxLocked}T12:00:00.000Z`)}. Collect in {booking.currency}.</p>
-          <div className="eq">
+          <div className="collect-switch" role="group" aria-label="Invoice currency">
             {CURRENCIES.map((currency) => {
               const current = currency === booking.currency;
               return (
-                <button key={currency} type="button" className={current ? "on" : undefined} disabled={current || anyPaid} onClick={() => desk.rebaseCurrency(booking.id, currency as Currency)}>
+                <button key={currency} type="button" aria-pressed={current} disabled={current || anyPaid} onClick={() => desk.rebaseCurrency(booking.id, currency as Currency)}>
                   {money(convert(booking.total, booking.currency, currency, booking.fx), currency)}
                 </button>
               );

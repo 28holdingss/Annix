@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Cover } from "@/components/covers";
-import { Pill } from "@/components/ui";
 import { money } from "@/lib/format";
 import { priceQuote } from "@/lib/pricing";
 import { useDesk } from "@/lib/store";
 import type { QuoteStatus } from "@/lib/types";
+
+const packagePhotos = ["/package1.jpg", "/package2.jpg", "/package3.jpg", "/package4.jpg", "/package5.jpg"];
 
 const filters: { id: "all" | QuoteStatus; label: string }[] = [
   { id: "all", label: "All" },
@@ -19,9 +19,8 @@ const filters: { id: "all" | QuoteStatus; label: string }[] = [
 export function QuoteList() {
   const desk = useDesk();
   const [status, setStatus] = useState<(typeof filters)[number]["id"]>("all");
-  const quotes = [...desk.quotes]
-    .filter((quote) => status === "all" || quote.status === status)
-    .sort((a, b) => b.updated.localeCompare(a.updated));
+  const ordered = [...desk.quotes].sort((a, b) => b.updated.localeCompare(a.updated));
+  const quotes = ordered.filter((quote) => status === "all" || quote.status === status);
 
   return (
     <>
@@ -39,35 +38,36 @@ export function QuoteList() {
         </div>
       </header>
 
-      <div className="itin-list">
+      <div className="stay-grid">
         {quotes.map((quote) => {
           const inquiry = desk.inquiries.find((row) => row.id === quote.inquiryId);
           const priced = priceQuote(quote, inquiry?.travelers ?? 1);
+          const photo = packagePhotos[ordered.findIndex((row) => row.id === quote.id) % packagePhotos.length];
           return (
-            <article key={quote.id} className="itin-row">
-              <Link href={`/quotes/${quote.id}`} className="itin-open">
-                <Cover destination={inquiry?.destination ?? quote.title} label="" />
-                <div>
+            <Link key={quote.id} href={`/quotes/${quote.id}`} className="stay-card" style={{ backgroundImage: `url("${photo}")` }}>
+              <span className="stay-state">{quote.status}</span>
+              <span className="stay-copy">
+                <span className="stay-title">
                   <h2>{quote.title}</h2>
-                  <p className="meta">
-                    {inquiry?.organisation ?? inquiry?.client} · {inquiry?.dates} · {inquiry?.travelers} travellers · {quote.days.length} days
-                  </p>
-                </div>
-                <div className="itin-price">
-                  <strong>{money(priced.perPerson, quote.invoiceCurrency)}</strong>
-                  <span>per person</span>
-                  <em>{money(priced.sellInvoice, quote.invoiceCurrency)} total</em>
-                </div>
-                <Pill tone={quote.status}>{quote.status}</Pill>
-              </Link>
-              <Link className="btn" href={`/quotes/${quote.id}/proposal`}>
-                Proposal
-              </Link>
-            </article>
+                  <b>{money(priced.perPerson, quote.invoiceCurrency)}</b>
+                </span>
+                <p>{inquiry?.brief}</p>
+                <span className="stay-tags">
+                  <em>{inquiry?.kind}</em>
+                  <em>
+                    {quote.days.length} {quote.days.length === 1 ? "day" : "days"}
+                  </em>
+                  <em>
+                    {inquiry?.travelers} {inquiry?.travelers === 1 ? "traveller" : "travellers"}
+                  </em>
+                </span>
+              </span>
+              <span className="stay-book">Open</span>
+            </Link>
           );
         })}
-        {quotes.length === 0 ? <p className="empty">No {status} itineraries on the desk.</p> : null}
       </div>
+      {quotes.length === 0 ? <p className="empty">No {status} itineraries on the desk.</p> : null}
     </>
   );
 }
